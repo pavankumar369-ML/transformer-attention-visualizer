@@ -27,8 +27,12 @@ def load_base_model(model_name: str = BASE_MODEL):
     which is what the Attention and Probing lenses both need.
     """
     tokenizer = AutoTokenizer.from_pretrained(model_name)
+    # attn_implementation="eager" is required: the default fast kernels
+    # (SDPA / flash attention) never materialise the attention matrix, so
+    # newer transformers versions return no attention weights without it.
     model = AutoModel.from_pretrained(
         model_name,
+        attn_implementation="eager",
         output_attentions=True,
         output_hidden_states=True,
     )
@@ -44,7 +48,9 @@ def load_classifier(model_name: str = CLASSIFIER_MODEL):
     to attribute.
     """
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForSequenceClassification.from_pretrained(model_name)
+    model = AutoModelForSequenceClassification.from_pretrained(
+        model_name, attn_implementation="eager"
+    )
     model.eval()
     return tokenizer, model
 

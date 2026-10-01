@@ -70,5 +70,7 @@ Last-layer attention alone ignores twelve layers of prior mixing. Rollout
 multiplies the residual-adjusted attention matrices across layers to
 approximate input-to-output influence.
 
-**"Who did what?"**
-Have a one-line answer per person ready. Vagueness here costs marks.
+**"Why should I trust the bias result?"**
+We don't claim harm from attention differences alone — we show a
+measurable divergence in internal processing on minimal pairs, and say
+exactly that.

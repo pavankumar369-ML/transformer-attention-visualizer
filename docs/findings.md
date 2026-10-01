@@ -34,14 +34,14 @@ Format: sentence, what you expected, what happened, what you concluded.
 ---
 
 ## Token importance lens
-_Person B_
+_coming in the next step_
 
 ---
 
 ## Layer probing lens
-_Person C_
+_coming in the next step_
 
 ---
 
 ## Bias lens
-_Person D_
+_coming in the next step_

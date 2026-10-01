@@ -1,4 +1,4 @@
-# Layer Probing Lens — owner: Person C
+# Layer Probing Lens
 
 ## What you are building
 BERT has 12 layers. They do not all do the same job. This lens shows what

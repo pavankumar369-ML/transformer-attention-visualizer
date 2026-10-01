@@ -110,16 +110,20 @@ of one, and it is discussed rather than glossed over in `docs/`.
 
 ---
 
-## Team
+## Author
 
-| Lens | Owner |
-| --- | --- |
-| Shared infrastructure + Attention lens + app shell | Pavan Kumar ([@pavankumar369-ML](https://github.com/pavankumar369-ML)) |
-| Token Importance (SHAP) | _teammate_ |
-| Layer Probing | _teammate_ |
-| Bias Analysis + integration | _teammate_ |
+**Pavan Kumar** — design, implementation, and research write-up
+[GitHub @pavankumar369-ML](https://github.com/pavankumar369-ML) ·
+[LinkedIn](https://www.linkedin.com/in/pindiprolu-phani-pavan-kumar-236280385)
 
-Each lens has its own README with a brief, a target result, and starter code.
+## Roadmap
+
+- [x] Shared infrastructure — model loader, probe set, theme
+- [x] Attention lens — heatmap, arc view, head grid, attention rollout
+- [ ] Token Importance lens — SHAP attribution vs. attention
+- [ ] Layer Probing lens — POS and sentiment probes across 12 layers
+- [ ] Bias lens — minimal-pair diffing
+- [ ] Live deployment + demo GIF
 
 ---
 

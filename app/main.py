@@ -1,9 +1,8 @@
 """
 Multi-Lens Visualization Framework - main app.
 
-One sentence in, four explanations out. Each tab is owned by one team
-member; the shell, the shared state and the Attention tab live here and in
-attention_lens/.
+One sentence in, four explanations out. The shell and shared state live
+here; each lens lives in its own package.
 
 Run locally:  streamlit run app/main.py
 """
@@ -47,7 +46,7 @@ st.markdown(
 
 
 # ------------------------------------------------------------------ input
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner="Running BERT… (first launch downloads ~440 MB, one time only)")
 def run_attention(text: str):
     return extract.attention_matrices(text)
 
@@ -89,7 +88,11 @@ if not text.strip():
     st.info("Enter a sentence above to begin.")
     st.stop()
 
-tokens, attn = run_attention(text)
+try:
+    tokens, attn = run_attention(text)
+except Exception as exc:  # surface errors in the UI, not just the terminal
+    st.error(f"Model failed to run: {exc}")
+    st.stop()
 
 # ------------------------------------------------------------------- tabs
 tab_attn, tab_shap, tab_probe, tab_bias, tab_about = st.tabs(
@@ -107,8 +110,11 @@ with tab_attn:
     head = None if head_mode.startswith("average") else int(head_mode.split()[-1])
 
     real_tokens = [t for t in tokens if t not in ("[CLS]", "[SEP]")]
-    query = c3.selectbox("Focus token", real_tokens,
-                         index=min(len(real_tokens) - 1, 0))
+    # Default to the probe's focus token (e.g. "it") so the demo opens on
+    # the interesting view instead of on "the".
+    preferred = probe.focus[0] if probe and probe.focus else None
+    default_idx = real_tokens.index(preferred) if preferred in real_tokens else 0
+    query = c3.selectbox("Focus token", real_tokens, index=default_idx)
 
     matrix = extract.select(attn, layer=layer, head=head)
 
@@ -155,7 +161,7 @@ with tab_attn:
 with tab_shap:
     st.subheader("Which words actually drove the prediction?")
     st.info(
-        "Owned by **Person B**. Implement in `shap_lens/`.\n\n"
+        "🚧 **In development.**\n\n"
         "Target: run the sentiment classifier, compute SHAP values per "
         "token, render them as an inline highlighted sentence plus a bar "
         "chart. The interesting comparison is attention vs. attribution - "
@@ -165,7 +171,7 @@ with tab_shap:
 with tab_probe:
     st.subheader("What does each layer know?")
     st.info(
-        "Owned by **Person C**. Implement in `probing_lens/`.\n\n"
+        "🚧 **In development.**\n\n"
         "Target: extract hidden states from all 12 layers, train a small "
         "logistic-regression probe per layer on a POS task and a sentiment "
         "task, plot accuracy against layer depth. Expected result: syntax "
@@ -175,7 +181,7 @@ with tab_probe:
 with tab_bias:
     st.subheader("Does the model treat these sentences differently?")
     st.info(
-        "Owned by **Person D**. Implement in `bias_dashboard/`.\n\n"
+        "🚧 **In development.**\n\n"
         "Target: run minimal pairs from `shared.sentences.BIAS_PAIRS` "
         "(identical sentences, one swapped word), diff the attention and "
         "attribution, and surface where the two runs disagree."

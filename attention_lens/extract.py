@@ -30,7 +30,13 @@ def attention_matrices(text: str, model_name: Optional[str] = None):
 
     inputs = encode(tokenizer, text)
     with torch.no_grad():
-        outputs = model(**inputs)
+        outputs = model(**inputs, output_attentions=True)
+
+    if not outputs.attentions or outputs.attentions[0] is None:
+        raise RuntimeError(
+            "Model returned no attention weights. Load it with "
+            "attn_implementation='eager' (see shared/model_loader.py)."
+        )
 
     tokens = tokenizer.convert_ids_to_tokens(inputs["input_ids"][0])
     # tuple(n_layers) of (1, heads, seq, seq) -> (layers, heads, seq, seq)

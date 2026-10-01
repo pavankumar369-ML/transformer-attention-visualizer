@@ -1,1 +1,1 @@
-"""Bias analysis lens - owner: Person D."""
+"""Bias analysis lens."""

@@ -1,4 +1,4 @@
-# Token Importance Lens — owner: Person B
+# Token Importance Lens
 
 ## What you are building
 Attention shows what the model *looked at*. It does not show what actually

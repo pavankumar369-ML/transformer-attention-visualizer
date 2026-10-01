@@ -1,4 +1,4 @@
-# Bias Analysis Lens — owner: Person D
+# Bias Analysis Lens
 
 ## What you are building
 Two jobs: the bias lens itself, and final integration of all four tabs.

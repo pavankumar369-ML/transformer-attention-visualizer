@@ -1,1 +1,1 @@
-"""Layer-wise probing lens - owner: Person C."""
+"""Layer-wise probing lens."""

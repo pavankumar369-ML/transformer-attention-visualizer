@@ -17,8 +17,9 @@ import matplotlib.pyplot as plt
 import streamlit as st
 
 from attention_lens import extract, render
+from probing_lens import lens as probing_lens
 from shared import sentences
-from shared.config import ACCENT, BASE_MODEL, BERT_LAYERS, NEUTRAL
+from shared.config import ACCENT, BASE_MODEL, BERT_LAYERS, NEUTRAL, PROBING_MODELS
 
 st.set_page_config(
     page_title="Multi-Lens Visualization Framework",
@@ -49,6 +50,11 @@ st.markdown(
 @st.cache_data(show_spinner="Running BERT… (first launch downloads ~440 MB, one time only)")
 def run_attention(text: str):
     return extract.attention_matrices(text)
+
+
+@st.cache_data(show_spinner="Tracking words through the layers…")
+def run_probing(text: str, model_name: str):
+    return probing_lens.compute(text, model_name)
 
 
 st.title("Multi-Lens Visualization Framework")
@@ -170,13 +176,18 @@ with tab_shap:
 
 with tab_probe:
     st.subheader("What does each layer know?")
-    st.info(
-        "🚧 **In development.**\n\n"
-        "Target: extract hidden states from all 12 layers, train a small "
-        "logistic-regression probe per layer on a POS task and a sentiment "
-        "task, plot accuracy against layer depth. Expected result: syntax "
-        "peaks in the middle layers, semantics later."
+    probe_model = st.selectbox(
+        "Model", list(PROBING_MODELS), format_func=PROBING_MODELS.get,
+        key="probing_model",
+        help="Plain pretrained encoders, no fine-tuning. Switching model "
+             "re-runs the live word tracker.",
     )
+    try:
+        probing_result = run_probing(text, probe_model)
+    except Exception as exc:
+        st.error(f"Probing lens failed: {exc}")
+    else:
+        probing_lens.render(probing_result, focus=probe.focus if probe else None)
 
 with tab_bias:
     st.subheader("Does the model treat these sentences differently?")

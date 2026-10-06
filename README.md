@@ -2,7 +2,7 @@
 
 ### A Multi-Lens Visualization Framework for Interpreting Transformer Language Models
 
-Type a sentence. See four different explanations of how BERT understood it.
+Type a sentence. See five different explanations of how BERT understood it.
 
 > *"The animal didn't cross the street because **it** was too tired."*
 > → `it` attends to **animal**
@@ -24,14 +24,15 @@ nobody normally sees.
 
 Plotting them is the obvious first move, and it is also not enough: a token
 can receive high attention without influencing the output at all. So this
-project takes four passes at the same question instead of one.
+project takes five passes at the same question instead of one.
 
 | Lens | Question | Method |
 | --- | --- | --- |
 | **Attention** | What is the model looking at? | Raw attention weights + attention rollout |
-| **Token Importance** | What actually changed the answer? | SHAP attribution over a classifier |
+| **Attribution** | What actually changed the answer, and is that true? | SHAP, Integrated Gradients, deletion tests |
 | **Layer Probing** | What does each layer know? | Logistic probes on frozen hidden states |
-| **Bias Analysis** | Does any of this shift on a loaded word? | Minimal-pair diffing |
+| **Bias** | Does the model prefer stereotypes? | CrowS-Pairs benchmark, minimal-pair diffing |
+| **Causal** | Which attention heads actually matter? | Head ablation and pruning |
 
 ---
 
@@ -71,16 +72,17 @@ cached. CPU is fine — there is no training in the Attention lens.
 ```
 shared/            model loading, config, the shared probe sentences
 attention_lens/    attention extraction, heatmaps, arc diagrams, rollout
-shap_lens/         token attribution
-probing_lens/      layer-wise probing classifiers
-bias_dashboard/    minimal-pair comparison + final integration
-app/               the Streamlit app that stitches all four together
+attribution_lens/  SHAP, Integrated Gradients, faithfulness (Member A)
+probing_lens/      layer-wise probes, control tasks, CKA, word tracker (Member B)
+bias_lens/         CrowS-Pairs benchmark, minimal pairs (Member C)
+causal_lens/       attention-head ablation (Member C)
+app/               the Streamlit app that stitches all five together
 tests/             sanity checks (attention rows sum to 1, etc.)
 docs/              report material, figures, demo script
 ```
 
 Everything imports from `shared/`. One model, one tokenizer, one sentence
-set — so four independent lenses stay comparable.
+set — so five independent lenses stay comparable.
 
 ---
 
@@ -105,7 +107,7 @@ look for:
 Attention weights are **not** a complete explanation of model behaviour, and
 the interpretability literature is fairly direct about this. A high weight
 means information flowed along that edge, not that the edge caused the
-output. That limitation is the reason this project has four lenses instead
+output. That limitation is the reason this project has five lenses instead
 of one, and it is discussed rather than glossed over in `docs/`.
 
 ---
@@ -120,9 +122,10 @@ of one, and it is discussed rather than glossed over in `docs/`.
 
 - [x] Shared infrastructure — model loader, probe set, theme
 - [x] Attention lens — heatmap, arc view, head grid, attention rollout
-- [ ] Token Importance lens — SHAP attribution vs. attention
-- [x] Layer Probing lens — POS / NER / sentiment probes with control task, CKA, word tracker
-- [ ] Bias lens — minimal-pair diffing
+- [x] Probing lens — POS / NER / sentiment probes with control task, CKA, word tracker
+- [ ] Attribution lens — SHAP, Integrated Gradients, faithfulness tests
+- [ ] Bias lens — CrowS-Pairs benchmark, minimal-pair explorer
+- [ ] Causal lens — attention-head ablation
 - [ ] Live deployment + demo GIF
 
 ---

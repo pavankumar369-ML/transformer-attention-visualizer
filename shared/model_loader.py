@@ -12,6 +12,7 @@ from functools import lru_cache
 
 from transformers import (
     AutoModel,
+    AutoModelForMaskedLM,
     AutoModelForSequenceClassification,
     AutoTokenizer,
 )
@@ -49,6 +50,20 @@ def load_classifier(model_name: str = CLASSIFIER_MODEL):
     """
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForSequenceClassification.from_pretrained(
+        model_name, attn_implementation="eager"
+    )
+    model.eval()
+    return tokenizer, model
+
+
+@lru_cache(maxsize=4)
+def load_mlm(model_name: str = BASE_MODEL):
+    """Return (tokenizer, model) for masked-word prediction.
+
+    Used by the Bias lens for pseudo-log-likelihood scoring.
+    """
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForMaskedLM.from_pretrained(
         model_name, attn_implementation="eager"
     )
     model.eval()

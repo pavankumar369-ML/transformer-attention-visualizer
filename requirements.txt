@@ -1,20 +1,22 @@
 # Core
 torch>=2.0.0
 transformers>=4.40.0
-streamlit>=1.30.0
+streamlit>=1.50.0
 
-# Visualisation
-matplotlib>=3.7.0
+# Data and plotting (all lenses)
 numpy>=1.24.0
+pandas>=2.0.0
+matplotlib>=3.7.0
+plotly>=5.18.0
+scipy>=1.10.0
 
-# Token Importance lens (Person B)
+# Attribution lens (Member A)
 shap>=0.44.0
+captum>=0.7.0
 
-# Layer Probing lens (Person C)
+# Probing lens (Member B) and Bias lens (Member C)
 scikit-learn>=1.3.0
 datasets>=2.14.0
-plotly>=5.18.0
-pandas>=2.0.0
 
 # Dev
 pytest>=7.4.0

@@ -1,12 +1,14 @@
 """
 Multi-Lens Visualization Framework - main app.
 
-One sentence in, four explanations out. The shell and shared state live
+One sentence in, five explanations out. The shell and shared state live
 here; each lens lives in its own package.
 
 Run locally:  streamlit run app/main.py
 """
 
+import importlib
+import importlib.util
 import sys
 from pathlib import Path
 
@@ -19,7 +21,15 @@ import streamlit as st
 from attention_lens import extract, render
 from probing_lens import lens as probing_lens
 from shared import sentences
-from shared.config import ACCENT, BASE_MODEL, BERT_LAYERS, NEUTRAL, PROBING_MODELS
+from shared.config import (
+    ACCENT,
+    BASE_MODEL,
+    BERT_LAYERS,
+    BIAS_MODELS,
+    NEUTRAL,
+    PROBING_MODELS,
+    SENTIMENT_MODELS,
+)
 
 st.set_page_config(
     page_title="Multi-Lens Visualization Framework",
@@ -57,9 +67,36 @@ def run_probing(text: str, model_name: str):
     return probing_lens.compute(text, model_name)
 
 
+@st.cache_data(show_spinner="Running the lens…")
+def run_lens(package: str, text: str, model_name: str):
+    return importlib.import_module(f"{package}.lens").compute(text, model_name)
+
+
+def lens_tab(package: str, models: dict, key: str, coming: str):
+    """Draw a lens tab from its package's compute()/render().
+
+    A lens appears automatically once `<package>/lens.py` exists, so lens
+    authors never need to edit this file. Until then the tab shows `coming`.
+    """
+    # find_spec on "pkg.lens" raises if "pkg" itself is missing, so check both.
+    if (importlib.util.find_spec(package) is None
+            or importlib.util.find_spec(f"{package}.lens") is None):
+        st.info(f"🚧 **In development.**\n\n{coming}")
+        return
+    model_name = st.selectbox(
+        "Model", list(models), format_func=models.get, key=f"{key}_model"
+    )
+    try:
+        result = run_lens(package, text, model_name)
+    except Exception as exc:  # show the error in the tab, keep other tabs alive
+        st.error(f"{package} failed: {exc}")
+        return
+    importlib.import_module(f"{package}.lens").render(result)
+
+
 st.title("Multi-Lens Visualization Framework")
 st.markdown(
-    '<p class="tav-sub">Four ways of looking inside a transformer, '
+    '<p class="tav-sub">Five ways of looking inside a transformer, '
     "on one sentence at a time.</p>",
     unsafe_allow_html=True,
 )
@@ -101,8 +138,8 @@ except Exception as exc:  # surface errors in the UI, not just the terminal
     st.stop()
 
 # ------------------------------------------------------------------- tabs
-tab_attn, tab_shap, tab_probe, tab_bias, tab_about = st.tabs(
-    ["Attention", "Token Importance", "Layer Probing", "Bias Analysis", "About"]
+tab_attn, tab_attr, tab_probe, tab_bias, tab_causal, tab_about = st.tabs(
+    ["Attention", "Attribution", "Probing", "Bias", "Causal", "About"]
 )
 
 # ---------------------------------------------------------- ATTENTION TAB
@@ -127,7 +164,7 @@ with tab_attn:
     st.markdown("**Arc view** - where this token sends its attention")
     fig_arc, ax_arc = plt.subplots(figsize=(max(7, 0.75 * len(tokens)), 3.2))
     render.arc(matrix, tokens, query, top_k=4, ax=ax_arc)
-    st.pyplot(fig_arc, use_container_width=True)
+    st.pyplot(fig_arc, width="stretch")
     plt.close(fig_arc)
 
     labels, weights = extract.token_focus(matrix, tokens, query)
@@ -141,12 +178,12 @@ with tab_attn:
         size = max(4.5, 0.42 * len(tokens))
         fig_hm, ax_hm = plt.subplots(figsize=(size, size))
         render.heatmap(matrix, tokens, ax=ax_hm)
-        st.pyplot(fig_hm, use_container_width=False)
+        st.pyplot(fig_hm, width="content")
         plt.close(fig_hm)
 
     with st.expander("All heads in this layer"):
         fig_grid = render.head_grid(attn, tokens, layer)
-        st.pyplot(fig_grid, use_container_width=True)
+        st.pyplot(fig_grid, width="stretch")
         plt.close(fig_grid)
 
     with st.expander("Attention rollout (all layers combined)"):
@@ -160,18 +197,16 @@ with tab_attn:
         size = max(4.5, 0.42 * len(tokens))
         fig_r, ax_r = plt.subplots(figsize=(size, size))
         render.heatmap(roll, tokens, title="Attention rollout", ax=ax_r)
-        st.pyplot(fig_r, use_container_width=False)
+        st.pyplot(fig_r, width="content")
         plt.close(fig_r)
 
 # --------------------------------------------------------------- STUB TABS
-with tab_shap:
-    st.subheader("Which words actually drove the prediction?")
-    st.info(
-        "🚧 **In development.**\n\n"
-        "Target: run the sentiment classifier, compute SHAP values per "
-        "token, render them as an inline highlighted sentence plus a bar "
-        "chart. The interesting comparison is attention vs. attribution - "
-        "high attention does not always mean high influence on the output."
+with tab_attr:
+    st.subheader("Which words actually changed the answer?")
+    lens_tab(
+        "attribution_lens", SENTIMENT_MODELS, "attribution",
+        "SHAP and Integrated Gradients per word, tested by deleting words "
+        "and watching the prediction change.",
     )
 
 with tab_probe:
@@ -190,12 +225,18 @@ with tab_probe:
         probing_lens.render(probing_result, focus=probe.focus if probe else None)
 
 with tab_bias:
-    st.subheader("Does the model treat these sentences differently?")
-    st.info(
-        "🚧 **In development.**\n\n"
-        "Target: run minimal pairs from `shared.sentences.BIAS_PAIRS` "
-        "(identical sentences, one swapped word), diff the attention and "
-        "attribution, and surface where the two runs disagree."
+    st.subheader("Does the model prefer stereotypes?")
+    lens_tab(
+        "bias_lens", BIAS_MODELS, "bias",
+        "CrowS-Pairs benchmark scores per category, plus a minimal-pair "
+        "explorer.",
+    )
+
+with tab_causal:
+    st.subheader("Which attention heads actually matter?")
+    lens_tab(
+        "causal_lens", SENTIMENT_MODELS, "causal",
+        "Switch attention heads off and measure what breaks.",
     )
 
 with tab_about:
@@ -207,15 +248,16 @@ computes **attention weights** over every other token - a learned measure of
 what context it needs in order to represent that word. Those weights are
 numbers inside the model that nobody normally sees.
 
-This tool makes them visible, and then adds three more views on top, because
+This tool makes them visible, and then adds four more views on top, because
 attention alone is an incomplete explanation:
 
 | Lens | Question it answers |
 | --- | --- |
 | Attention | Which tokens does the model look at? |
-| Token Importance | Which tokens actually changed the output? |
-| Layer Probing | What kind of information lives at each depth? |
-| Bias Analysis | Do those patterns shift when we swap one loaded word? |
+| Attribution | Which tokens actually changed the output, and is that true? |
+| Probing | What kind of information lives at each depth? |
+| Bias | Does the model prefer stereotyped sentences? |
+| Causal | Which attention heads actually matter? |
 
 Base model: `{BASE_MODEL}`. No fine-tuning - every view is computed from a
 pretrained checkpoint at inference time.

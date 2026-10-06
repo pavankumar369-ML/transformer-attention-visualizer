@@ -135,7 +135,7 @@ def render(result: LensResult, focus: Optional[List[str]] = None):
             f"{best.get('pos', '–')}**, named entities **layer {best.get('ner', '–')}**, "
             f"sentiment **layer {best.get('sentiment', '–')}**."
         )
-        st.plotly_chart(plots.probe_curves(df), use_container_width=True)
+        st.plotly_chart(plots.probe_curves(df))
         baselines = (
             df.groupby("task").baseline.first() if "baseline" in df else pd.Series(dtype=float)
         )
@@ -160,7 +160,7 @@ def render(result: LensResult, focus: Optional[List[str]] = None):
 
         # ------------------------------------------------ 2. selectivity
         st.markdown("#### 2 · How much of the grammar score is real?")
-        st.plotly_chart(plots.selectivity_bars(df), use_container_width=True)
+        st.plotly_chart(plots.selectivity_bars(df))
         st.caption("Taller bar = the layer really encodes grammar, not just word identity.")
         _how_to_read(
             "Each bar is *POS accuracy − control accuracy* (Hewitt & Liang, 2019). "
@@ -181,7 +181,6 @@ def render(result: LensResult, focus: Optional[List[str]] = None):
         a, b = choice.split("|")
         st.plotly_chart(
             plots.cka_heatmap(cka[choice], display_name(a), display_name(b)),
-            use_container_width=True,
         )
         _how_to_read(
             "Each cell compares two layers using CKA: run the same few thousand words "
@@ -203,11 +202,11 @@ def render(result: LensResult, focus: Optional[List[str]] = None):
                         if f.lower() in lowered), 0)
         idx = st.selectbox(
             "Word from your sentence", range(len(words)), index=default,
-            format_func=lambda i: f"{words[i]}  (word {i + 1})", key="probing_word",
+            format_func=lambda i: f"{words[i]}  (word {i + 1})",
+            key=f"probing_word|{result.text}",  # fresh default per sentence
         )
         st.plotly_chart(
             plots.self_similarity_line(d["self_similarity"][idx], words[idx]),
-            use_container_width=True,
         )
         sims = d["self_similarity"][idx]
         st.caption(
@@ -231,14 +230,22 @@ def render(result: LensResult, focus: Optional[List[str]] = None):
     st.plotly_chart(
         plots.pair_similarity_line(pair["similarity"], pair["word"], pair["senses"],
                                    pair["separation"]),
-        use_container_width=True,
     )
+    sim = pair["similarity"]
     if pair["separation"] is not None:
-        st.caption(
+        caption = (
             f"The two '{pair['word']}'s start almost identical and have drifted half-way "
             f"apart by layer {pair['separation']}: that is where {name} starts using "
             "context to tell the senses apart."
         )
+        # Upper layers can pull every vector back together (anisotropy).
+        if sim[-1] - sim.min() > (sim[0] - sim.min()) / 2:
+            caption += (
+                f" They drift back together after layer {int(np.argmin(sim))}, though: "
+                f"in {name}'s upper layers most vectors point the same way, so raw "
+                "cosine stops separating the senses."
+            )
+        st.caption(caption)
     else:
         st.caption(f"The two '{pair['word']}'s never clearly separate in {name}.")
     _how_to_read(

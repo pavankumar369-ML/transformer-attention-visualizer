@@ -24,7 +24,7 @@ TASK_LABELS = {"pos": "Part of speech", "ner": "Named entities", "sentiment": "S
 
 
 def _style(fig: go.Figure, height: int = 380, **layout) -> go.Figure:
-    fig.update_layout(
+    base = dict(
         height=height,
         font=dict(family=FONT_FAMILY, color=NEUTRAL, size=13),
         plot_bgcolor="white",
@@ -32,8 +32,8 @@ def _style(fig: go.Figure, height: int = 380, **layout) -> go.Figure:
         margin=dict(l=10, r=10, t=40, b=10),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
         hovermode="x unified",
-        **layout,
     )
+    fig.update_layout(**{**base, **layout})
     fig.update_xaxes(gridcolor=GRID, zeroline=False)
     fig.update_yaxes(gridcolor=GRID, zeroline=False)
     return fig

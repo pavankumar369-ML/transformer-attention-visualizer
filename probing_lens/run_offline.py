@@ -192,7 +192,7 @@ def main():
     parser.add_argument("--jobs", type=int, default=4, help="probes trained in parallel")
     args = parser.parse_args()
 
-    print("Loading datasets…")
+    print("Loading datasets...")
     conll, sst = datasets.load_conll(), datasets.load_sst2()
     print(f"  conll2003 from {conll['source']}, sst2 from {sst['source']}")
 
@@ -202,7 +202,7 @@ def main():
         save_results(run_probes(model, conll, sst, args.jobs))
         print(f"  results -> {RESULTS_CSV}")
 
-    print("\nCKA…")
+    print("\nCKA...")
     update_cka()
     print(f"  -> {CKA_JSON}")
 

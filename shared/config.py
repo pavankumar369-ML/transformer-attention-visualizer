@@ -30,9 +30,24 @@ GRID = "#E3E3E8"
 
 FONT_FAMILY = "Inter, 'Segoe UI', system-ui, sans-serif"
 
+# Probing lens: one categorical colour per probe task. The control task is
+# drawn dashed in its real task's colour, so it needs no colour of its own.
+TASK_COLORS = {
+    "pos": ACCENT,
+    "ner": "#3A7CA5",
+    "sentiment": "#6A994E",
+}
+
 # ---------------------------------------------------------------- layout
 BERT_LAYERS = 12
 BERT_HEADS = 12
+
+# Plain encoders the Probing lens compares. Values are display names.
+PROBING_MODELS = {
+    "bert-base-uncased": "BERT",
+    "distilbert-base-uncased": "DistilBERT",
+    "roberta-base": "RoBERTa",
+}
 
 LENS_NAMES = {
     "attention": "Attention Lens",

@@ -11,9 +11,10 @@ Models are cached in-process, so repeated calls are free.
 from functools import lru_cache
 
 from transformers import (
-    AutoModel,
-    AutoModelForSequenceClassification,
-    AutoTokenizer,
+       AutoModel,
+       AutoModelForMaskedLM,
+       AutoModelForSequenceClassification,
+       AutoTokenizer,
 )
 
 from shared.config import BASE_MODEL, CLASSIFIER_MODEL, MAX_LENGTH
@@ -74,3 +75,13 @@ def tokens_of(tokenizer, text: str):
     """
     enc = encode(tokenizer, text)
     return tokenizer.convert_ids_to_tokens(enc["input_ids"][0])
+
+@lru_cache(maxsize=4)
+def load_mlm(model_name: str = BASE_MODEL):
+    """Return (tokenizer, model) with the masked-language-model head."""
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForMaskedLM.from_pretrained(
+        model_name, attn_implementation="eager"
+    )
+    model.eval()
+    return tokenizer, model

@@ -121,7 +121,7 @@ of one, and it is discussed rather than glossed over in `docs/`.
 - [x] Shared infrastructure — model loader, probe set, theme
 - [x] Attention lens — heatmap, arc view, head grid, attention rollout
 - [ ] Token Importance lens — SHAP attribution vs. attention
-- [ ] Layer Probing lens — POS and sentiment probes across 12 layers
+- [x] Layer Probing lens — POS / NER / sentiment probes with control task, CKA, word tracker
 - [ ] Bias lens — minimal-pair diffing
 - [ ] Live deployment + demo GIF
 

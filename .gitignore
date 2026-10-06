@@ -11,6 +11,8 @@ env/
 data/*.npy
 data/*.pkl
 data/*.pt
+data/vectors/
+data/*.log
 !data/.gitkeep
 
 # Notebooks

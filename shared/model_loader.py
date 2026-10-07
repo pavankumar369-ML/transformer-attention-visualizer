@@ -11,10 +11,10 @@ Models are cached in-process, so repeated calls are free.
 from functools import lru_cache
 
 from transformers import (
-       AutoModel,
-       AutoModelForMaskedLM,
-       AutoModelForSequenceClassification,
-       AutoTokenizer,
+    AutoModel,
+    AutoModelForMaskedLM,
+    AutoModelForSequenceClassification,
+    AutoTokenizer,
 )
 
 from shared.config import BASE_MODEL, CLASSIFIER_MODEL, MAX_LENGTH
@@ -56,6 +56,20 @@ def load_classifier(model_name: str = CLASSIFIER_MODEL):
     return tokenizer, model
 
 
+@lru_cache(maxsize=4)
+def load_mlm(model_name: str = BASE_MODEL):
+    """Return (tokenizer, model) for masked-word prediction.
+
+    Used by the Bias lens for pseudo-log-likelihood scoring.
+    """
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForMaskedLM.from_pretrained(
+        model_name, attn_implementation="eager"
+    )
+    model.eval()
+    return tokenizer, model
+
+
 def encode(tokenizer, text: str):
     """Tokenise one sentence the way every lens should tokenise it."""
     return tokenizer(
@@ -75,13 +89,3 @@ def tokens_of(tokenizer, text: str):
     """
     enc = encode(tokenizer, text)
     return tokenizer.convert_ids_to_tokens(enc["input_ids"][0])
-
-@lru_cache(maxsize=4)
-def load_mlm(model_name: str = BASE_MODEL):
-    """Return (tokenizer, model) with the masked-language-model head."""
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForMaskedLM.from_pretrained(
-        model_name, attn_implementation="eager"
-    )
-    model.eval()
-    return tokenizer, model

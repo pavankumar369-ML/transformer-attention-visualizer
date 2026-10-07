@@ -28,22 +28,33 @@ LIGHT_MODEL = "distilbert-base-uncased"
 MAX_LENGTH = 64
 
 # ---------------------------------------------------------------- theme
-# One palette for all five lenses. Low attention -> cool, high -> warm.
-COLOR_SCALE = "RdBu_r"
-ACCENT = "#E4572E"
-ACCENT_SOFT = "#F5C7BB"
-NEUTRAL = "#4A4E69"
-BG_SOFT = "#F7F7F9"
-GRID = "#E3E3E8"
+# Palette: white paper, ink-navy text, one cobalt accent, amber as the
+# second signal. Every lens imports these, so changing them here restyles
+# all five views at once.
+INK = "#1C2433"
+NEUTRAL = "#5B6577"      # secondary text, negative bars
+GRID = "#E6E9EF"         # rules and gridlines
+MIST = "#F5F7FA"         # quiet surfaces
+BG_SOFT = "#FFFFFF"      # chart background
+ACCENT = "#2D5BE3"       # cobalt: the one accent
+ACCENT_SOFT = "#C7D3F7"
+AMBER = "#C27C0E"
+TEAL = "#1F8A70"
 
-FONT_FAMILY = "Inter, 'Segoe UI', system-ui, sans-serif"
+# Diverging scale for signed scores (attribution). Keep a name both
+# Plotly and Matplotlib know.
+COLOR_SCALE = "RdBu_r"
+# Sequential scale for attention weights (0 = white, high = deep cobalt).
+SEQ_SCALE = [[0.0, "#FFFFFF"], [0.35, "#C7D3F7"], [0.7, "#5C80EC"], [1.0, "#1A3FB0"]]
+
+FONT_FAMILY = "'IBM Plex Sans', 'Segoe UI', system-ui, -apple-system, sans-serif"
 
 # Probing lens: one categorical colour per probe task. The control task is
 # drawn dashed in its real task's colour, so it needs no colour of its own.
 TASK_COLORS = {
     "pos": ACCENT,
-    "ner": "#3A7CA5",
-    "sentiment": "#6A994E",
+    "ner": AMBER,
+    "sentiment": TEAL,
 }
 
 # ---------------------------------------------------------------- layout
@@ -56,6 +67,16 @@ PROBING_MODELS = {
     "distilbert-base-uncased": "DistilBERT",
     "roberta-base": "RoBERTa",
 }
+
+# The one model the app runs live. DistilBERT keeps BERT's design at half
+# the depth (6 layers, 12 heads), so every view loads about twice as fast.
+# APP_CLASSIFIER is the same model fine-tuned for sentiment; the lenses
+# that explain a prediction (Attribution, Causal) need that version.
+# The other models stay in the offline experiments and their saved results.
+APP_MODEL = "distilbert-base-uncased"
+APP_CLASSIFIER = "distilbert-base-uncased-finetuned-sst-2-english"
+APP_MODEL_NAME = "DistilBERT"
+APP_MODEL_DETAIL = "66M parameters, 6 layers, 12 heads"
 
 # Masked language models the Bias lens scores (same encoders as Probing).
 BIAS_MODELS = PROBING_MODELS

@@ -1,268 +1,273 @@
 """
-Multi-Lens Visualization Framework - main app.
+Transformer Attention Visualizer - a multi-lens visualization framework.
 
-One sentence in, five explanations out. The shell and shared state live
-here; each lens lives in its own package.
+One sentence in, five views of how the model reads it. Only the lens that
+is open runs, so switching views never recomputes the others.
 
 Run locally:  streamlit run app/main.py
 """
 
+import html
 import importlib
 import importlib.util
+import inspect
 import sys
 from pathlib import Path
 
 # Make `shared`, `attention_lens`, ... importable when run from anywhere.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import matplotlib.pyplot as plt
 import streamlit as st
 
-from attention_lens import extract, render
-from probing_lens import lens as probing_lens
+from attention_lens import extract, views
 from shared import sentences
-from shared.config import (
-    ACCENT,
-    BASE_MODEL,
-    BERT_LAYERS,
-    BIAS_MODELS,
-    NEUTRAL,
-    PROBING_MODELS,
-    SENTIMENT_MODELS,
-)
+from shared.config import APP_CLASSIFIER, APP_MODEL, APP_MODEL_DETAIL, APP_MODEL_NAME
+from shared.theme import apply_theme
 
 st.set_page_config(
-    page_title="Multi-Lens Visualization Framework",
+    page_title="Transformer Attention Visualizer",
     page_icon="🔍",
     layout="wide",
 )
+apply_theme(st)
 
-# ------------------------------------------------------------------ style
+# ------------------------------------------------------------ examples
+# Short names for the curated sentences, in the order of shared.sentences.
+EXAMPLE_NAMES = [
+    "Pronoun, tired", "Pronoun, wide", "Trophy and suitcase",
+    "Not bad", "Not good",
+    "Bank, money", "Bank, river",
+    "Mixed review", "Sarcasm",
+    "Agreement", "Nested clause",
+]
+EXAMPLES = dict(zip(EXAMPLE_NAMES, sentences.ALL_PROBES))
+
+LENSES = ["Attention", "Attribution", "Probing", "Bias", "Causal", "About"]
+
+LENS_COPY = {
+    "Attention": ("Which words does the model look at?",
+                  "Every word spreads its attention across the sentence. Pick a word to see where it looks.",
+                  f"{APP_MODEL_NAME}"),
+    "Attribution": ("Which words changed the prediction?",
+                    "Four methods score each word, then we delete words to test whether those scores hold up.",
+                    f"{APP_MODEL_NAME} fine-tuned for sentiment (SST-2)"),
+    "Probing": ("What does each layer know?",
+                "Small classifiers try to read grammar and meaning out of each layer, with a control task to keep them honest.",
+                f"{APP_MODEL_NAME}, with saved results for BERT and RoBERTa"),
+    "Bias": ("Does the model prefer stereotypes?",
+             "Benchmark scores from CrowS-Pairs, and a side-by-side view of this sentence with its gendered words swapped.",
+             f"{APP_MODEL_NAME}"),
+    "Causal": ("Which attention heads actually matter?",
+               "Switch heads off and measure how much the prediction moves. This is the only lens that tests cause, not correlation.",
+               f"{APP_MODEL_NAME} fine-tuned for sentiment (SST-2)"),
+}
+
+
+# ------------------------------------------------------------ state
+def _use_example():
+    name = st.session_state.get("example")
+    if name:
+        st.session_state.sentence = EXAMPLES[name].text
+
+
+def _typed():
+    st.session_state.example = None
+
+
+def _keep_lens():
+    # A segmented control can be clicked off; keep the last lens instead.
+    if st.session_state.lens is None:
+        st.session_state.lens = st.session_state.get("_last_lens", "Attention")
+    st.session_state._last_lens = st.session_state.lens
+
+
+if "sentence" not in st.session_state:
+    st.session_state.sentence = sentences.ALL_PROBES[0].text
+    st.session_state.example = EXAMPLE_NAMES[0]
+
+# ------------------------------------------------------------ masthead
 st.markdown(
     f"""
-    <style>
-      .block-container {{ padding-top: 2.2rem; max-width: 1180px; }}
-      h1, h2, h3 {{ color: {NEUTRAL}; letter-spacing: -0.01em; }}
-      .tav-sub {{ color: #6C6F80; font-size: 0.95rem; margin-top: -0.6rem; }}
-      .tav-why {{
-        background: #F7F7F9; border-left: 3px solid {ACCENT};
-        padding: 0.65rem 0.9rem; border-radius: 4px;
-        font-size: 0.9rem; color: #4A4E69; margin: 0.6rem 0 1.1rem 0;
-      }}
-      .stTabs [data-baseweb="tab"] {{ font-size: 0.95rem; }}
-    </style>
+    <div class="tav-top">
+      <div>
+        <div class="tav-name">Transformer Attention Visualizer</div>
+        <div class="tav-tag">See how a transformer reads one sentence, through five independent views.</div>
+      </div>
+      <div class="tav-model">{APP_MODEL_NAME}<span>{APP_MODEL_DETAIL}</span></div>
+    </div>
     """,
     unsafe_allow_html=True,
 )
 
-
-# ------------------------------------------------------------------ input
-@st.cache_data(show_spinner="Running BERT… (first launch downloads ~440 MB, one time only)")
-def run_attention(text: str):
-    return extract.attention_matrices(text)
-
-
-@st.cache_data(show_spinner="Tracking words through the layers…")
-def run_probing(text: str, model_name: str):
-    return probing_lens.compute(text, model_name)
-
-
-@st.cache_data(show_spinner="Running the lens…")
-def run_lens(package: str, text: str, model_name: str):
-    return importlib.import_module(f"{package}.lens").compute(text, model_name)
-
-
-def lens_tab(package: str, models: dict, key: str, coming: str):
-    """Draw a lens tab from its package's compute()/render().
-
-    A lens appears automatically once `<package>/lens.py` exists, so lens
-    authors never need to edit this file. Until then the tab shows `coming`.
-    """
-    # find_spec on "pkg.lens" raises if "pkg" itself is missing, so check both.
-    if (importlib.util.find_spec(package) is None
-            or importlib.util.find_spec(f"{package}.lens") is None):
-        st.info(f"🚧 **In development.**\n\n{coming}")
-        return
-    model_name = st.selectbox(
-        "Model", list(models), format_func=models.get, key=f"{key}_model"
-    )
-    try:
-        result = run_lens(package, text, model_name)
-    except Exception as exc:  # show the error in the tab, keep other tabs alive
-        st.error(f"{package} failed: {exc}")
-        return
-    try:
-        importlib.import_module(f"{package}.lens").render(result)
-    except Exception as exc:  # a drawing bug must not blank the tabs after it
-        st.error(f"{package} could not draw this tab: {exc}")
-
-
-st.title("Multi-Lens Visualization Framework")
-st.markdown(
-    '<p class="tav-sub">Five ways of looking inside a transformer, '
-    "on one sentence at a time.</p>",
-    unsafe_allow_html=True,
-)
-
-with st.container():
-    left, right = st.columns([3, 2])
-
-    with right:
-        labels = [f"{p.text}" for p in sentences.ALL_PROBES]
-        picked = st.selectbox(
-            "Example sentences",
-            options=["(type your own)"] + labels,
-            help="Curated probes - each one is designed to expose a "
-                 "specific behaviour.",
-        )
-
-    with left:
-        default = "" if picked == "(type your own)" else picked
-        text = st.text_input(
-            "Sentence to analyse",
-            value=default or sentences.ALL_PROBES[0].text,
-        )
+text = st.text_input("Sentence", key="sentence", on_change=_typed,
+                     placeholder="Type any English sentence", label_visibility="collapsed")
+st.pills("Examples", EXAMPLE_NAMES, key="example", on_change=_use_example)
 
 probe = next((p for p in sentences.ALL_PROBES if p.text == text), None)
 if probe:
+    st.markdown(f'<p class="tav-note"><b>What to look for.</b> {html.escape(probe.why)}</p>',
+                unsafe_allow_html=True)
+
+if not text.strip():
+    st.info("Type a sentence above, or pick one of the examples.")
+    st.stop()
+
+st.write("")
+lens = st.segmented_control("View", LENSES, default="Attention", key="lens",
+                            on_change=_keep_lens, label_visibility="collapsed") or "Attention"
+
+
+def lens_header(name: str):
+    question, explainer, model = LENS_COPY[name]
     st.markdown(
-        f'<div class="tav-why"><b>What to look for:</b> {probe.why}</div>',
+        f'<div class="tav-lens-head"><h2>{question}</h2><p>{explainer}</p>'
+        f'<div class="tav-meta">Model: {model}</div></div>',
         unsafe_allow_html=True,
     )
 
-if not text.strip():
-    st.info("Enter a sentence above to begin.")
-    st.stop()
 
-try:
-    tokens, attn = run_attention(text)
-except Exception as exc:  # surface errors in the UI, not just the terminal
-    st.error(f"Model failed to run: {exc}")
-    st.stop()
+# ------------------------------------------------------------ cached runs
+@st.cache_data(show_spinner="Reading the sentence…")
+def run_attention(sentence: str):
+    return extract.attention_matrices(sentence, APP_MODEL)
 
-# ------------------------------------------------------------------- tabs
-tab_attn, tab_attr, tab_probe, tab_bias, tab_causal, tab_about = st.tabs(
-    ["Attention", "Attribution", "Probing", "Bias", "Causal", "About"]
-)
 
-# ---------------------------------------------------------- ATTENTION TAB
-with tab_attn:
-    st.subheader("What is the model looking at?")
+@st.cache_data(show_spinner="Running the lens…")
+def run_lens(package: str, sentence: str, model_name: str):
+    return importlib.import_module(f"{package}.lens").compute(sentence, model_name)
 
-    c1, c2, c3 = st.columns(3)
-    layer = c1.slider("Layer", 0, BERT_LAYERS - 1, BERT_LAYERS - 1)
-    head_mode = c2.selectbox("Head", ["average of all heads"] +
-                             [f"head {h}" for h in range(attn.shape[1])])
-    head = None if head_mode.startswith("average") else int(head_mode.split()[-1])
 
-    real_tokens = [t for t in tokens if t not in ("[CLS]", "[SEP]")]
-    # Default to the probe's focus token (e.g. "it") so the demo opens on
-    # the interesting view instead of on "the".
-    preferred = probe.focus[0] if probe and probe.focus else None
-    default_idx = real_tokens.index(preferred) if preferred in real_tokens else 0
-    query = c3.selectbox("Focus token", real_tokens, index=default_idx)
-
-    matrix = extract.select(attn, layer=layer, head=head)
-
-    st.markdown("**Arc view** - where this token sends its attention")
-    fig_arc, ax_arc = plt.subplots(figsize=(max(7, 0.75 * len(tokens)), 3.2))
-    render.arc(matrix, tokens, query, top_k=4, ax=ax_arc)
-    st.pyplot(fig_arc, width="stretch")
-    plt.close(fig_arc)
-
-    labels, weights = extract.token_focus(matrix, tokens, query)
-    top_label, top_weight = labels[0], weights[0]
-    st.markdown(
-        f"In layer **{layer}**, `{query}` attends most strongly to "
-        f"**`{top_label}`** ({top_weight:.0%} of its non-special attention)."
-    )
-
-    with st.expander("Full attention matrix"):
-        size = max(4.5, 0.42 * len(tokens))
-        fig_hm, ax_hm = plt.subplots(figsize=(size, size))
-        render.heatmap(matrix, tokens, ax=ax_hm)
-        st.pyplot(fig_hm, width="content")
-        plt.close(fig_hm)
-
-    with st.expander("All heads in this layer"):
-        fig_grid = render.head_grid(attn, tokens, layer)
-        st.pyplot(fig_grid, width="stretch")
-        plt.close(fig_grid)
-
-    with st.expander("Attention rollout (all layers combined)"):
-        st.caption(
-            "Last-layer attention alone is a weak explanation - information "
-            "has already been mixed by earlier layers. Rollout multiplies "
-            "the residual-adjusted matrices to approximate input-to-output "
-            "influence."
-        )
-        roll = extract.attention_rollout(attn)
-        size = max(4.5, 0.42 * len(tokens))
-        fig_r, ax_r = plt.subplots(figsize=(size, size))
-        render.heatmap(roll, tokens, title="Attention rollout", ax=ax_r)
-        st.pyplot(fig_r, width="content")
-        plt.close(fig_r)
-
-# --------------------------------------------------------------- STUB TABS
-with tab_attr:
-    st.subheader("Which words actually changed the answer?")
-    lens_tab(
-        "attribution_lens", SENTIMENT_MODELS, "attribution",
-        "SHAP and Integrated Gradients per word, tested by deleting words "
-        "and watching the prediction change.",
-    )
-
-with tab_probe:
-    st.subheader("What does each layer know?")
-    probe_model = st.selectbox(
-        "Model", list(PROBING_MODELS), format_func=PROBING_MODELS.get,
-        key="probing_model",
-        help="Plain pretrained encoders, no fine-tuning. Switching model "
-             "re-runs the live word tracker.",
-    )
+def show_lens(package: str, model_name: str, **render_kwargs):
+    """Run one lens and draw it. Errors stay inside this view."""
+    if (importlib.util.find_spec(package) is None
+            or importlib.util.find_spec(f"{package}.lens") is None):
+        st.info("This view is not available in this copy of the project.")
+        return
     try:
-        probing_result = run_probing(text, probe_model)
+        result = run_lens(package, text, model_name)
     except Exception as exc:
-        st.error(f"Probing lens failed: {exc}")
-    else:
-        probing_lens.render(probing_result, focus=probe.focus if probe else None)
+        st.error(f"This view could not run on this sentence: {exc}")
+        return
+    module = importlib.import_module(f"{package}.lens")
+    accepted = inspect.signature(module.render).parameters
+    kwargs = {k: v for k, v in render_kwargs.items() if k in accepted}
+    try:
+        module.render(result, **kwargs)
+    except Exception as exc:
+        st.error(f"This view could not be drawn: {exc}")
 
-with tab_bias:
-    st.subheader("Does the model prefer stereotypes?")
-    lens_tab(
-        "bias_lens", BIAS_MODELS, "bias",
-        "CrowS-Pairs benchmark scores per category, plus a minimal-pair "
-        "explorer.",
+
+# ------------------------------------------------------------ attention
+def attention_view():
+    try:
+        tokens, attn = run_attention(text)
+    except Exception as exc:
+        st.error(f"The model could not run: {exc}")
+        return
+    n_layers, n_heads = attn.shape[0], attn.shape[1]
+    content = views.content_index(tokens)
+    if not content:
+        st.info("This sentence has no words to analyse.")
+        return
+
+    # Default focus: the probe's focus word, else the first word.
+    default_word = probe.focus[0] if probe and probe.focus else None
+    default_pos = next((i for i in content if tokens[i] == default_word), content[0])
+
+    c1, c2, c3 = st.columns([2, 3, 2], gap="large")
+    query = c1.selectbox(
+        "Focus word", content, index=content.index(default_pos),
+        format_func=lambda i: views.display(tokens[i]) + (f" ({i})" if [tokens[j] for j in content].count(tokens[i]) > 1 else ""),
+        key=f"focus_{hash(text)}",
     )
+    layer = c2.slider("Layer", 1, n_layers, n_layers, help="1 is closest to the input, the last layer closest to the output.")
+    head_choice = c3.selectbox("Heads", ["All heads, averaged"] + [f"Head {h + 1}" for h in range(n_heads)],
+                               help="Averaging is the honest default. Single heads are noisy.")
+    head = None if head_choice.startswith("All") else int(head_choice.split()[-1]) - 1
+    matrix = extract.select(attn, layer=layer - 1, head=head)
 
-with tab_causal:
-    st.subheader("Which attention heads actually matter?")
-    lens_tab(
-        "causal_lens", SENTIMENT_MODELS, "causal",
-        "Switch attention heads off and measure what breaks.",
-    )
+    word = views.display(tokens[query])
+    st.markdown(f"### Where “{html.escape(word)}” looks")
+    st.markdown(views.token_strip_html(tokens, matrix, query), unsafe_allow_html=True)
 
-with tab_about:
-    st.subheader("About this project")
+    idx, w = views.focus_weights(matrix, tokens, query)
+    others = [o for o in range(len(idx)) if idx[o] != query]
+    if others:
+        top = max(others, key=lambda o: w[o])
+        st.caption(f"In layer {layer}, “{word}” gives {w[top]:.0%} of its attention to "
+                   f"“{views.display(tokens[idx[top]])}”. Darker words get more. "
+                   f"[CLS] and [SEP] are left out and the rest rescaled to 100%.")
+
+    left, right = st.columns([3, 1], gap="large")
+    with left:
+        st.plotly_chart(views.arc_figure(tokens, matrix, query), width="stretch")
+    with right:
+        st.markdown("**Strongest links**")
+        st.markdown(views.ranked_html(tokens, matrix, query), unsafe_allow_html=True)
+
+    st.markdown("### Go deeper")
+    show_matrix = st.toggle("Full attention matrix for this layer")
+    if show_matrix:
+        st.plotly_chart(views.heatmap_figure(tokens, matrix), width="stretch")
+        st.caption("Each row is a word; each cell is how much it attends to the word in that column. "
+                   "Rows add up to 100%, including [CLS] and [SEP].")
+
+    show_heads = st.toggle(f"Every head in layer {layer}")
+    if show_heads:
+        st.plotly_chart(views.head_grid_figure(tokens, attn[layer - 1]), width="stretch")
+        st.caption("Heads specialise. Some look at the next or previous word, some park on [SEP], "
+                   "a few track grammar.")
+
+    show_rollout = st.toggle("Attention rollout across all layers")
+    if show_rollout:
+        st.plotly_chart(views.heatmap_figure(tokens, extract.attention_rollout(attn)), width="stretch")
+        st.caption("One layer's attention ignores the mixing done by the layers below it. Rollout "
+                   "multiplies the layers together to estimate how much each input word reaches each "
+                   "output position (Abnar and Zuidema, 2020).")
+
+
+# ------------------------------------------------------------ about
+def about_view():
+    st.markdown('<div class="tav-lens-head"><h2>About this project</h2>'
+                '<p>A transformer never reads left to right. For every word it computes attention '
+                'weights over every other word: a learned measure of which context it needs. '
+                'Those numbers sit inside the model where nobody normally sees them.</p></div>',
+                unsafe_allow_html=True)
     st.markdown(
-        f"""
-A transformer does not read a sentence word by word. For every token it
-computes **attention weights** over every other token - a learned measure of
-what context it needs in order to represent that word. Those weights are
-numbers inside the model that nobody normally sees.
+        """
+Plotting attention is the obvious first step, and on its own it is not enough: a word can receive a lot of
+attention without changing the model's answer. So this tool looks at the same sentence five ways and lets
+the views check each other.
 
-This tool makes them visible, and then adds four more views on top, because
-attention alone is an incomplete explanation:
+| View | Question it answers | How |
+| --- | --- | --- |
+| Attention | Which words does the model look at? | Attention weights, head grid, attention rollout |
+| Attribution | Which words changed the prediction, and is that true? | SHAP, Integrated Gradients, deletion tests |
+| Probing | What does each layer know? | Linear probes with control tasks, layer similarity (CKA) |
+| Bias | Does the model prefer stereotypes? | CrowS-Pairs benchmark, gender-swapped sentence pairs |
+| Causal | Which attention heads actually matter? | Switching heads off and measuring the change |
 
-| Lens | Question it answers |
-| --- | --- |
-| Attention | Which tokens does the model look at? |
-| Attribution | Which tokens actually changed the output, and is that true? |
-| Probing | What kind of information lives at each depth? |
-| Bias | Does the model prefer stereotyped sentences? |
-| Causal | Which attention heads actually matter? |
+**Model.** Everything runs live on DistilBERT, a smaller version of BERT with 6 layers instead of 12.
+The saved experiments also cover BERT and RoBERTa, and the Probing view compares all three.
 
-Base model: `{BASE_MODEL}`. No fine-tuning - every view is computed from a
-pretrained checkpoint at inference time.
+**A note on what attention proves.** High attention means information flowed along that link. It does not
+mean the link caused the output. That gap is the reason the other four views exist.
         """
     )
+
+
+# ------------------------------------------------------------ router
+if lens == "About":
+    about_view()
+else:
+    lens_header(lens)
+    if lens == "Attention":
+        attention_view()
+    elif lens == "Attribution":
+        show_lens("attribution_lens", APP_CLASSIFIER)
+    elif lens == "Probing":
+        show_lens("probing_lens", APP_MODEL, focus=probe.focus if probe else None)
+    elif lens == "Bias":
+        show_lens("bias_lens", APP_MODEL)
+    elif lens == "Causal":
+        show_lens("causal_lens", APP_CLASSIFIER)

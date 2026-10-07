@@ -42,7 +42,8 @@ CSS = """
 .stApp h1, .stApp h2, .stApp h3, .stApp h4 { color: var(--ink); letter-spacing: -0.01em; }
 .stApp h3 { font-size: 1.15rem; font-weight: 600; padding-top: 1.5rem; }
 .stApp h4 { font-size: 1.02rem; font-weight: 600; padding-top: 1.25rem; }
-.stApp [data-testid="stCaptionContainer"] { color: var(--slate); }
+.stApp [data-testid="stCaptionContainer"], .stApp [data-testid="stCaptionContainer"] p,
+.stApp .stCaption, .stApp small { color: var(--slate) !important; font-size: 0.88rem; }
 .stApp p { text-wrap: pretty; }
 
 /* Masthead */
@@ -86,7 +87,11 @@ CSS = """
 .tav-rank .w { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Containers */
-[data-testid="stExpander"] details { border: 1px solid var(--rule); border-radius: 8px; }
+/* "How to read this": a quiet disclosure, not a box */
+[data-testid="stExpander"] details { border: none; border-radius: 0; background: transparent; }
+[data-testid="stExpander"] summary { padding: 0.35rem 0; font-size: 0.9rem; color: var(--slate); }
+[data-testid="stExpander"] summary:hover { color: var(--cobalt); }
+[data-testid="stExpander"] [data-testid="stExpanderDetails"] { padding: 0.25rem 0 0.75rem 1.6rem; color: var(--slate); }
 [data-testid="stAlert"] { border-radius: 8px; }
 [data-testid="stMetricValue"] { font-family: var(--font); font-weight: 600; }
 

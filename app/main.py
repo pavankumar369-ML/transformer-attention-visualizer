@@ -91,7 +91,10 @@ def lens_tab(package: str, models: dict, key: str, coming: str):
     except Exception as exc:  # show the error in the tab, keep other tabs alive
         st.error(f"{package} failed: {exc}")
         return
-    importlib.import_module(f"{package}.lens").render(result)
+    try:
+        importlib.import_module(f"{package}.lens").render(result)
+    except Exception as exc:  # a drawing bug must not blank the tabs after it
+        st.error(f"{package} could not draw this tab: {exc}")
 
 
 st.title("Multi-Lens Visualization Framework")

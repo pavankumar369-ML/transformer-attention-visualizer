@@ -72,7 +72,7 @@ def render(result: LensResult) -> None:
         if d.empty:
             st.info(f"No benchmark results for {result.model_name} yet.")
         else:
-            st.plotly_chart(stereotype_fig(d), use_container_width=True)
+            st.plotly_chart(stereotype_fig(d), width="stretch")
             sig = d[(d.category != "overall") & d.significantly_above_50]["category"].tolist()
             st.caption("Categories where this model assigns significantly higher likelihood to the "
                        "stereotyped sentence (p < 0.05, uncorrected): " + (", ".join(sig) if sig else "none")
@@ -92,8 +92,8 @@ def render(result: LensResult) -> None:
     st.caption(result.data["summary"] if (a, b) == (result.data["text_a"], result.data["text_b"])
                else f"P(positive): A = {cmp['p_pos_a']:.2f}, B = {cmp['p_pos_b']:.2f}")
     fig_att, fig_attr = pair_figs(cmp)
-    st.plotly_chart(fig_att, use_container_width=True)
-    st.plotly_chart(fig_attr, use_container_width=True)
+    st.plotly_chart(fig_att, width="stretch")
+    st.plotly_chart(fig_attr, width="stretch")
     with st.expander("How to read this"):
         st.write("Orange bars in rows A and B mark the words that differ between the two sentences. The bottom "
                  "row shows, for every shared word, how much its score changes when only that swap is made. "

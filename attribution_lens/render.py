@@ -88,13 +88,17 @@ def render_panels(p: dict) -> None:
     c = _colors()
     tokens, special = p["tokens"], np.array(p["special"], dtype=bool)
 
-    # Panel 1: prediction banner
-    color = c["pos"] if p["pred_label"] == "POSITIVE" else c["neg"]
-    st.markdown(f"<div style='font-size:2.4rem;font-weight:700;color:{color}'>"
-                f"Prediction: {p['pred_label']} ({p['pred_prob']:.0%})</div>", unsafe_allow_html=True)
-    with st.expander("How to read this"):
-        st.write("This is what the model decided for your sentence and how confident it is. "
-                 "Everything below explains *why*.")
+    # Panel 1: prediction
+    color = "#1C2433"
+    prob = p["pred_prob"]
+    shown = "over 99.9%" if prob >= 0.999 else f"{prob:.1%}"
+    st.markdown(
+        f"<div style='display:flex;align-items:baseline;gap:0.9rem;margin:0.25rem 0 1.25rem'>"
+        f"<span style='font-size:0.9rem;color:#5B6577'>Prediction</span>"
+        f"<span style='font-size:1.6rem;font-weight:600;color:{color}'>{p['pred_label'].capitalize()}</span>"
+        f"<span style='font-size:0.95rem;color:#5B6577'>{shown} confident</span></div>",
+        unsafe_allow_html=True,
+    )
 
     # Panel 2: highlighted sentence, SHAP and IG
     for m in ("SHAP", "IG"):

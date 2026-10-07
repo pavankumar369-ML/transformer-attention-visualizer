@@ -43,6 +43,7 @@ CSS = """
 .stApp h3 { font-size: 1.15rem; font-weight: 600; padding-top: 1.5rem; }
 .stApp h4 { font-size: 1.02rem; font-weight: 600; padding-top: 1.25rem; }
 .stApp [data-testid="stCaptionContainer"] { color: var(--slate); }
+.stApp p { text-wrap: pretty; }
 
 /* Masthead */
 .tav-top {
@@ -56,7 +57,8 @@ CSS = """
 
 /* The sentence is the hero: large, quiet field */
 .stTextInput input { font-size: 1.4rem; line-height: 1.4; padding: 0.85rem 1rem; color: var(--ink); }
-.stTextInput [data-baseweb="input"] { border-radius: 8px; border-color: var(--rule); background: #FFFFFF; }
+.stTextInput [data-baseweb="input"] { border-radius: 8px; border: 1px solid #D5DAE2; background: #FFFFFF; }
+.stTextInput [data-baseweb="base-input"], .stTextInput input { background: #FFFFFF; }
 .stTextInput [data-baseweb="input"]:focus-within {
   border-color: var(--cobalt); box-shadow: 0 0 0 3px rgba(45, 91, 227, 0.15);
 }

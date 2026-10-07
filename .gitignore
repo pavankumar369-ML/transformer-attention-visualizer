@@ -12,6 +12,7 @@ data/*.npy
 data/*.pkl
 data/*.pt
 data/vectors/
+data/cache/
 data/*.log
 !data/.gitkeep
 

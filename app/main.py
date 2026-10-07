@@ -12,6 +12,7 @@ import importlib
 import importlib.util
 import inspect
 import sys
+import threading
 from pathlib import Path
 
 # Make `shared`, `attention_lens`, ... importable when run from anywhere.
@@ -21,6 +22,7 @@ import streamlit as st
 
 from attention_lens import extract, views
 from shared import sentences
+from shared.cache import cached
 from shared.config import APP_CLASSIFIER, APP_MODEL, APP_MODEL_DETAIL, APP_MODEL_NAME
 from shared.theme import apply_theme
 
@@ -127,14 +129,43 @@ def lens_header(name: str):
 
 
 # ------------------------------------------------------------ cached runs
+# Two layers of caching: Streamlit's in-memory cache for this session, and
+# shared.cache on disk so results survive restarts.
 @st.cache_data(show_spinner="Reading the sentence…")
 def run_attention(sentence: str):
-    return extract.attention_matrices(sentence, APP_MODEL)
+    return cached("attention_lens", sentence, APP_MODEL,
+                  lambda: extract.attention_matrices(sentence, APP_MODEL))
 
 
-@st.cache_data(show_spinner="Running the lens…")
+@st.cache_data(show_spinner="Running the lens. The first run on a new sentence takes a few seconds…")
 def run_lens(package: str, sentence: str, model_name: str):
-    return importlib.import_module(f"{package}.lens").compute(sentence, model_name)
+    return cached(package, sentence, model_name,
+                  lambda: importlib.import_module(f"{package}.lens").compute(sentence, model_name))
+
+
+@st.cache_resource
+def _preload():
+    """While the reader looks at the first view, load the heavier lenses in the background.
+
+    Importing SHAP and Captum and loading the sentiment model takes several
+    seconds. Doing it here means the Attribution and Causal views open
+    quickly when the user gets to them.
+    """
+    def work():
+        try:
+            from shared.model_loader import load_classifier, load_mlm
+            load_classifier(APP_CLASSIFIER)
+            load_mlm(APP_MODEL)
+            for package in ("attribution_lens", "causal_lens", "bias_lens", "probing_lens"):
+                importlib.import_module(f"{package}.lens")
+        except Exception:
+            pass          # preloading is best-effort; the view loads normally if this fails
+    thread = threading.Thread(target=work, daemon=True)
+    thread.start()
+    return thread
+
+
+_preload()
 
 
 def show_lens(package: str, model_name: str, **render_kwargs):

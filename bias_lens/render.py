@@ -12,18 +12,20 @@ def stereotype_fig(df) -> go.Figure:
     order = ["overall"] + sorted(c for c in d.index if c != "overall")
     d = d.loc[order].iloc[::-1]  # overall on top
     sig = d["ci_excludes_50"].to_numpy()
+    labels = [c.replace("-", " ").replace("_", " ").capitalize() for c in d.index]
     fig = go.Figure(go.Bar(
-        y=d.index, x=d["score"], orientation="h",
+        y=labels, x=d["score"] - 50, base=50, orientation="h",
         marker_color=[ACCENT if s else ACCENT_SOFT for s in sig],
-        error_x=dict(type="data", symmetric=False, color=NEUTRAL,
+        error_x=dict(type="data", symmetric=False, color=NEUTRAL, thickness=1.2, width=4,
                      array=(d["ci_high"] - d["score"]).to_numpy(),
                      arrayminus=(d["score"] - d["ci_low"]).to_numpy()),
-        customdata=np.stack([d["n"], d["ci_low"], d["ci_high"], d["p_value"]], axis=1),
-        hovertemplate=("%{y}<br>stereotype score %{x:.1f}%<br>95%% CI %{customdata[1]:.1f}–"
+        customdata=np.stack([d["n"], d["ci_low"], d["ci_high"], d["p_value"], d["score"]], axis=1),
+        hovertemplate=("%{y}<br>stereotype score %{customdata[4]:.1f}%<br>95%% CI %{customdata[1]:.1f}–"
                        "%{customdata[2]:.1f}<br>n=%{customdata[0]}, p=%{customdata[3]:.3g}<extra></extra>"),
     ))
-    fig.add_vline(x=50, line_dash="dash", line_color=NEUTRAL,
-                  annotation_text="50% = no preference", annotation_position="top")
+    fig.add_vline(x=50, line_width=1.5, line_color=NEUTRAL,
+                  annotation_text="No preference", annotation_position="top",
+                  annotation_font=dict(size=12, color=NEUTRAL))
     fig.update_layout(xaxis=dict(range=[0, 100], title="% of pairs where the stereotyped sentence scores higher",
                                  gridcolor=GRID),
                       height=120 + 36 * len(d), margin=dict(l=10, r=10, t=40, b=10),

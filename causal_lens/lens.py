@@ -34,7 +34,8 @@ def compute(text: str, model_name: str) -> LensResult:
     acc_drop, prob_drop = saved if saved else (np.zeros(shape), np.zeros(shape))
     before = float(predict_with_mask([text], np.ones(shape), key)[0, 1])
     after = float(predict_with_mask([text], _remove_top(prob_drop, TOP_K), key)[0, 1]) if saved else before
-    summary = (f"P(positive) is {before:.2f}; removing the {TOP_K} most important heads makes it {after:.2f}."
+    summary = (f"The model gives this sentence a {before:.1%} chance of being positive. With the {TOP_K} "
+               f"most important heads switched off, that becomes {after:.1%}."
                if saved else OFFLINE_HINT)
     return LensResult(lens="causal", text=text, model_name=model_name,
                       data=dict(key=key, tokens=tokens_of(tok, text), importance=acc_drop,
@@ -79,7 +80,8 @@ def render(result: LensResult) -> None:
     st.subheader("Switch heads off yourself")
     L, H = importance.shape
     opts = [f"L{l + 1}-H{h + 1}" for l in range(L) for h in range(H)]
-    chosen = st.multiselect("Heads to remove (layer-head)", opts, key=f"causal_heads_{key}")
+    chosen = st.multiselect("Heads to switch off", opts, key=f"causal_heads_{key}",
+                            placeholder="Pick heads by layer and number, for example L5-H3")
     mask = np.ones((L, H))
     for c in chosen:
         l, h = c[1:].split("-H")
@@ -87,8 +89,9 @@ def render(result: LensResult) -> None:
     p0 = d["before"]
     p1 = float(predict_with_mask([result.text], mask, key)[0, 1])
     c1, c2 = st.columns(2)
-    c1.metric("P(positive) before", f"{p0:.3f}")
-    c2.metric("P(positive) after", f"{p1:.3f}", delta=f"{p1 - p0:+.3f}")
+    c1.metric("Chance of positive, all heads on", f"{p0:.1%}")
+    c2.metric("Chance of positive, chosen heads off", f"{p1:.1%}",
+              delta=f"{(p1 - p0) * 100:+.1f} points" if chosen else None, delta_color="off")
     with st.expander("How to read this"):
         st.write("Pick heads to switch off and compare the model's prediction on the current sentence before "
                  "and after. A big change means those heads carry information the model uses.")

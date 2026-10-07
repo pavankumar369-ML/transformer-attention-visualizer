@@ -126,7 +126,7 @@ def render(result: LensResult, focus: Optional[List[str]] = None):
         st.info(note)
 
     # ---------------------------------------------------- 1. probe curves
-    st.markdown("#### 1 · What each layer knows")
+    st.markdown("#### What each layer knows")
     df = d["probe_results"]
     if df is not None:
         best = {t: int(g.loc[g.accuracy.idxmax(), "layer"]) for t, g in df.groupby("task")}
@@ -159,7 +159,7 @@ def render(result: LensResult, focus: Optional[List[str]] = None):
         )
 
         # ------------------------------------------------ 2. selectivity
-        st.markdown("#### 2 · How much of the grammar score is real?")
+        st.markdown("#### How much of the grammar score is real?")
         st.plotly_chart(plots.selectivity_bars(df))
         st.caption("Taller bar = the layer really encodes grammar, not just word identity.")
         _how_to_read(
@@ -169,7 +169,7 @@ def render(result: LensResult, focus: Optional[List[str]] = None):
         )
 
     # ---------------------------------------------------------- 3. CKA
-    st.markdown("#### 3 · Which layers do similar work?")
+    st.markdown("#### Which layers do similar work?")
     cka = d["cka"]
     if cka:
         keys = sorted(cka, key=lambda k: (k.split("|")[0] != k.split("|")[1], k))
@@ -194,7 +194,7 @@ def render(result: LensResult, focus: Optional[List[str]] = None):
         )
 
     # -------------------------------------------------- 4. word tracker
-    st.markdown("#### 4 · How one word's meaning changes as it goes up (live)")
+    st.markdown("#### How one word’s meaning changes going up the layers")
     words = d["words"]
     if words:
         lowered = [w.lower() for w in words]

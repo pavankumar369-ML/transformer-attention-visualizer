@@ -14,6 +14,7 @@ import pandas as pd
 from bias_lens.pair_diff import compare_pair
 from bias_lens.swaps import swap_counterpart
 from shared.contracts import LensResult
+from shared.sentences import BIAS_PAIRS
 
 RESULTS = Path(__file__).resolve().parents[1] / "data" / "bias_results.csv"
 OFFLINE_HINT = "Run `python -m bias_lens.run_offline` to produce the benchmark results."
@@ -22,22 +23,24 @@ OFFLINE_HINT = "Run `python -m bias_lens.run_offline` to produce the benchmark r
 def compute(text: str, model_name: str) -> LensResult:
     """Pair view for `text` vs its gender-swapped counterpart. No Streamlit."""
     other, swapped = swap_counterpart(text)
-    cmp = compare_pair(text, other if swapped else text, model_name)
+    # No gendered word to swap: show a built-in pair instead of an empty view.
+    text_a, text_b = (text, other) if swapped else (BIAS_PAIRS[0][0].text, BIAS_PAIRS[0][1].text)
+    cmp = compare_pair(text_a, text_b, model_name)
     notes = []
-    if swapped and len(cmp["attr_diff"]):
+    if len(cmp["attr_diff"]):
         j = int(np.abs(cmp["attr_diff"]).argmax())
-        wa = [cmp["tokens_a"][i] for i in cmp["swapped_a"]]
-        wb = [cmp["tokens_b"][i] for i in cmp["swapped_b"]]
-        summary = (f"Swapping {wa} → {wb} changes P(positive) from {cmp['p_pos_a']:.2f} to "
-                   f"{cmp['p_pos_b']:.2f}; the largest attribution shift is on "
-                   f"'{cmp['shared_labels'][j]}' ({cmp['attr_diff'][j]:+.3f}).")
+        wa = ", ".join(cmp["tokens_a"][i] for i in cmp["swapped_a"])
+        wb = ", ".join(cmp["tokens_b"][i] for i in cmp["swapped_b"])
+        lead = "" if swapped else "This sentence has no gendered word, so here is a built-in pair. "
+        summary = (f"{lead}Swapping “{wa}” for “{wb}” moves the chance of a positive reading from "
+                   f"{cmp['p_pos_a']:.0%} to {cmp['p_pos_b']:.0%}. The biggest shift is on "
+                   f"“{cmp['shared_labels'][j]}” ({cmp['attr_diff'][j]:+.3f}).")
     else:
-        summary = "No gendered word to swap in this sentence, so the pair view shows no difference."
-        notes.append("This sentence has no gendered word to swap. Type your own pair below.")
+        summary = "The two sentences are identical, so there is no difference to show."
     if not RESULTS.exists():
         notes.append(OFFLINE_HINT)
     return LensResult(lens="bias", text=text, model_name=model_name,
-                      data=dict(text_a=text, text_b=other if swapped else text,
+                      data=dict(text_a=text_a, text_b=text_b,
                                 swapped=swapped, cmp=cmp, summary=summary),
                       notes=notes)
 
@@ -59,7 +62,7 @@ def render(result: LensResult) -> None:
     for n in result.notes:
         st.info(n)
 
-    with st.expander("⚠ Content warning", expanded=False):
+    with st.expander("Content warning", expanded=False):
         st.write("This tab uses CrowS-Pairs, a research benchmark that contains offensive stereotypes "
                  "by design, so we can measure whether a model prefers them. Sentences are never shown "
                  "here; only aggregate scores. The benchmark measures a statistical preference, not harm, "

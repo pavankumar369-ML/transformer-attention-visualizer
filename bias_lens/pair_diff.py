@@ -1,23 +1,26 @@
 """Minimal-pair explorer: compare one sentence pair token by token.
 
 Two signals per sentence:
-  * attention received  - mean over all layers/heads/query tokens (base encoder)
-  * occlusion attribution - drop in P(positive) when one token is masked (classifier)
+  * attention received  - mean over all layers/heads/query tokens (any of the 3 encoders)
+  * occlusion attribution - drop in P(positive) when one token is masked (SST-2 classifier)
 
-TODO(swap-in): when attention_lens.extract and Member A's attribution functions
-are on main, replace `attention_received` / `occlusion_attribution` with calls to
-them. Never copy their code.
+attention_lens.extract.attention_matrices is BERT-only (it takes no model name
+for the three-model comparison we need here), so this lens keeps its own small
+helpers built on shared.model_loader. Swap them for the shared functions if
+they gain multi-model support.
 """
 import numpy as np
 import torch
 
 from bias_lens.pll import shared_positions
-from causal_lens.ablate import CLASSIFIERS
+from causal_lens.ablate import CLASSIFIERS, short_key
 from shared.config import MAX_LENGTH
 from shared.model_loader import load_base_model, load_classifier, tokens_of
 
-MODEL_TO_KEY = {"bert-base-uncased": "bert", "distilbert-base-uncased": "distilbert",
-                "roberta-base": "roberta"}
+
+def _clean(tokens):
+    """Drop the word-start markers of RoBERTa ('Ġ') and SentencePiece ('▁')."""
+    return [t.lstrip("Ġ▁") for t in tokens]
 
 
 @torch.no_grad()
@@ -31,8 +34,7 @@ def attention_received(text: str, model_name: str) -> np.ndarray:
 @torch.no_grad()
 def occlusion_attribution(text: str, model_name: str):
     """Return (attribution per token incl. specials = 0, P(positive))."""
-    key = MODEL_TO_KEY.get(model_name, model_name)
-    tok, model = load_classifier(CLASSIFIERS[key])
+    tok, model = load_classifier(CLASSIFIERS[short_key(model_name)])
     ids = tok(text, return_tensors="pt", truncation=True, max_length=MAX_LENGTH)["input_ids"][0]
     T = len(ids)
     batch = ids.repeat(max(T - 1, 1), 1)                 # row 0 = original, row p = token p masked
@@ -46,7 +48,7 @@ def occlusion_attribution(text: str, model_name: str):
 
 def compare_pair(sent_a: str, sent_b: str, model_name: str) -> dict:
     tok, _ = load_base_model(model_name)
-    ta, tb = tokens_of(tok, sent_a), tokens_of(tok, sent_b)
+    ta, tb = _clean(tokens_of(tok, sent_a)), _clean(tokens_of(tok, sent_b))
     ids_a = tok(sent_a, truncation=True, max_length=MAX_LENGTH)["input_ids"]
     ids_b = tok(sent_b, truncation=True, max_length=MAX_LENGTH)["input_ids"]
     pa, pb = shared_positions(ids_a, ids_b)

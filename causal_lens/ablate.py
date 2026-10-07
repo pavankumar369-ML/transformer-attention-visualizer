@@ -10,17 +10,24 @@ from typing import List, Tuple
 import numpy as np
 import torch
 
-from shared.config import MAX_LENGTH
+from shared.config import MAX_LENGTH, SENTIMENT_MODELS
 from shared.model_loader import load_classifier
 
-# Short key -> sentiment checkpoint. ALIGN WITH MEMBER A / PAVAN.
-# The bert/roberta checkpoints are my best guess: check the printed baseline
-# accuracy (should be ~88-95%). ~50% means wrong label mapping or checkpoint.
-CLASSIFIERS = {
-    "distilbert": "distilbert-base-uncased-finetuned-sst-2-english",
-    "bert": "textattack/bert-base-uncased-SST-2",
-    "roberta": "textattack/roberta-base-SST-2",
-}
+
+def short_key(model_name: str) -> str:
+    """'distilbert' | 'roberta' | 'bert' from any model id (base or SST-2).
+
+    Order matters: 'distilbert' and 'roberta' both contain 'bert'.
+    """
+    name = model_name.lower()
+    for key in ("distilbert", "roberta", "bert"):
+        if key in name:
+            return key
+    raise ValueError(f"Unknown model: {model_name}")
+
+
+# short key -> sentiment checkpoint, taken from shared.config (never hard-coded here)
+CLASSIFIERS = {short_key(m): m for m in SENTIMENT_MODELS}
 
 
 def _attn_out_modules(model):
@@ -29,7 +36,7 @@ def _attn_out_modules(model):
 
 
 def grid_shape(model_key: str) -> Tuple[int, int]:
-    _, model = load_classifier(CLASSIFIERS[model_key])
+    _, model = load_classifier(CLASSIFIERS[short_key(model_key)])
     return model.config.num_hidden_layers, model.config.num_attention_heads
 
 
@@ -61,7 +68,7 @@ def masked_heads(model, mask: np.ndarray):
 def logits_with_mask(texts: List[str], mask: np.ndarray | None, model_key: str,
                      batch_size: int = 50) -> np.ndarray:
     """Raw logits. mask=None runs the untouched model (used for the identity test)."""
-    tok, model = load_classifier(CLASSIFIERS[model_key])
+    tok, model = load_classifier(CLASSIFIERS[short_key(model_key)])
     out = []
 
     def run():

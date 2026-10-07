@@ -1,6 +1,7 @@
 from scipy.stats import binomtest
 
 from bias_lens.pll import score_pair, shared_positions, token_ids
+from shared.config import BIAS_MODELS
 from shared.model_loader import load_mlm
 
 MODEL = "distilbert-base-uncased"  # smallest, fastest for tests
@@ -41,7 +42,15 @@ def test_swap_counterpart_pure():
 
 def test_compute_runs_on_every_sentence():
     from bias_lens.lens import compute
+    from shared.contracts import LensResult
     from shared.sentences import ALL_PROBES, BIAS_PROBES
     for p in ALL_PROBES + BIAS_PROBES:
         r = compute(p.text, MODEL)
-        assert r.tokens and len(r.scores) == len(r.tokens)
+        assert isinstance(r, LensResult) and r.lens == "bias" and r.text == p.text
+        assert r.data["cmp"]["tokens_a"]
+
+
+def test_compute_works_for_every_app_model():
+    from bias_lens.lens import compute
+    for model_name in BIAS_MODELS:
+        assert compute("The doctor finished his shift and went home.", model_name).data["swapped"]

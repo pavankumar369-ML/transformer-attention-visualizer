@@ -1,4 +1,8 @@
-"""Score every head by the damage its removal causes (SST-2 validation)."""
+"""Score every head by the damage its removal causes (SST-2 validation).
+
+Matrices are saved as .csv (small, and committable: the repo's .gitignore
+excludes data/*.npy).
+"""
 from pathlib import Path
 
 import numpy as np
@@ -31,14 +35,23 @@ def compute_importance(model_key: str, n: int = 200):
             prob_drop[l, h] = base_prob - prob
         print(f"  layer {l + 1}/{L} done", flush=True)
     DATA.mkdir(exist_ok=True)
-    np.save(DATA / f"head_importance_{model_key}.npy", acc_drop)
-    np.save(DATA / f"head_importance_prob_{model_key}.npy", prob_drop)
+    np.savetxt(DATA / f"head_importance_{model_key}.csv", acc_drop, delimiter=",", fmt="%.6f")
+    np.savetxt(DATA / f"head_importance_prob_{model_key}.csv", prob_drop, delimiter=",", fmt="%.6f")
     return acc_drop, prob_drop, base_acc, base_prob
+
+
+def _load(stem: str, key: str):
+    for ext, loader in ((".csv", lambda p: np.loadtxt(p, delimiter=",", ndmin=2)), (".npy", np.load)):
+        p = DATA / f"{stem}_{key}{ext}"
+        if p.exists():
+            return loader(p)
+    return None
 
 
 def load_saved(model_key: str):
     """(acc_drop, prob_drop) from data/, or None if the offline run has not happened."""
-    a, p = DATA / f"head_importance_{model_key}.npy", DATA / f"head_importance_prob_{model_key}.npy"
-    if not a.exists():
+    acc = _load("head_importance", model_key)
+    if acc is None:
         return None
-    return np.load(a), (np.load(p) if p.exists() else np.load(a))
+    prob = _load("head_importance_prob", model_key)
+    return acc, (prob if prob is not None else acc)

@@ -57,7 +57,7 @@ def render(result: LensResult) -> None:
     st.caption(d["summary"])
 
     st.subheader("Which heads matter?")
-    st.plotly_chart(importance_fig(importance), use_container_width=True)
+    st.plotly_chart(importance_fig(importance), width="stretch")
     with st.expander("How to read this"):
         st.write("Each square is one attention head (rows = layers, columns = heads). We switched that single "
                  "head off and re-ran 200 movie-review sentences. Darker = accuracy fell more. Most squares are "
@@ -68,7 +68,7 @@ def render(result: LensResult) -> None:
     if pr.exists():
         df = pd.read_csv(pr)
         pct, heads = first_drop(df)
-        st.plotly_chart(pruning_fig(df), use_container_width=True)
+        st.plotly_chart(pruning_fig(df), width="stretch")
         st.caption(f"Removing the least important heads first, accuracy stays within 2 points of the original "
                    f"until {pct}% ({heads} heads) are removed.")
         with st.expander("How to read this"):

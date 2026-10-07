@@ -62,8 +62,9 @@ pip install -r requirements.txt
 streamlit run app/main.py
 ```
 
-First run downloads `bert-base-uncased` (~420 MB). Everything after that is
-cached. CPU is fine — there is no training in the Attention lens.
+The app runs live on DistilBERT. The first run downloads it and its
+sentiment-tuned version (about 260 MB each); after that everything is cached.
+CPU is fine.
 
 ---
 

@@ -76,7 +76,7 @@ def render(result: LensResult) -> None:
             sig = d[(d.category != "overall") & d.significantly_above_50]["category"].tolist()
             st.caption("Categories where this model assigns significantly higher likelihood to the "
                        "stereotyped sentence (p < 0.05, uncorrected): " + (", ".join(sig) if sig else "none")
-                       + ". Change the model with the selector above.")
+                       + ".")
     else:
         st.info(OFFLINE_HINT)
     with st.expander("How to read this"):

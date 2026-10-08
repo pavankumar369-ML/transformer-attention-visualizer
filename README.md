@@ -6,7 +6,7 @@ Type one English sentence and see how a transformer model reads it, through five
 independent views: where it looks, which words drive its decision, what each layer
 knows, whether it prefers stereotypes, and which of its parts it actually needs.
 
-Course project for **CISWE310L Natural Language Processing**, VIT Vellore.
+Course project for **ISWE310L Natural Language Processing**, VIT Vellore.
 
 ---
 

@@ -10,6 +10,9 @@ Format: sentence, what you expected, what happened, what you concluded.
 
 ## Attention lens
 
+Numbers for the findings below come from `python -m attention_lens.report`
+(DistilBERT by default; add `--model bert-base-uncased` for BERT).
+
 ### Finding 1 — coreference shifts on a single word
 - **Probe:** the Winograd pair in `shared.sentences.COREFERENCE[0:2]`
 - **Expected:** `it` attends to `animal` in the `tired` version, `street` in
@@ -18,7 +21,7 @@ Format: sentence, what you expected, what happened, what you concluded.
 - **Conclusion:** _fill in_
 
 ### Finding 2 — head specialisation
-- **Probe:** any sentence, head grid view, layer 0 vs layer 11
+- **Probe:** any sentence, head grid view, first layer vs last layer
 - **Expected:** early heads look positional (diagonal / previous-token),
   later heads look more selective
 - **Observed:** _fill in_
@@ -33,8 +36,26 @@ Format: sentence, what you expected, what happened, what you concluded.
 
 ---
 
-## Token importance lens
-_coming in the next step_
+## Attribution lens
+
+Numbers come from `python -m attribution_lens.run_experiment`, which writes
+`data/attribution_results.csv` and `data/attribution_summary.csv`.
+
+### Finding 1: does attention agree with attribution?
+- **Expected:** low Spearman correlation between attention and SHAP / IG
+  (Jain and Wallace, 2019).
+- **Observed:** _fill in from the "Spearman with SHAP" column_
+- **Conclusion:** _fill in_
+
+### Finding 2: which explanation is most faithful?
+- **Expected:** SHAP or IG first, attention lower, random last (AOPC).
+- **Observed:** _fill in_
+- **Conclusion:** _fill in_
+
+### Finding 3: the sarcasm sentence
+- **Probe:** "Wow, it broke in one day. Truly impressive engineering."
+- **Observed:** _prediction, and the words SHAP and IG mark most strongly_
+- **Conclusion:** _fill in_
 
 ---
 
@@ -127,5 +148,6 @@ and `data/cka_results.json`.
 
 ---
 
-## Bias lens
-_coming in the next step_
+## Bias and Causal lenses
+
+See `docs/findings_member_c.md`.

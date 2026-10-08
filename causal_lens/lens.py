@@ -61,8 +61,8 @@ def render(result: LensResult) -> None:
     st.plotly_chart(importance_fig(importance), width="stretch")
     with st.expander("How to read this"):
         st.write("Each square is one attention head (rows = layers, columns = heads). We switched that single "
-                 "head off and re-ran 200 movie-review sentences. Darker = accuracy fell more. Most squares are "
-                 "pale: the model barely notices many heads missing.")
+                 "head off and re-ran 200 movie-review sentences. Blue = accuracy fell, amber = accuracy rose, "
+                 "white = no change. Most squares are pale: the model barely notices many heads missing.")
 
     st.subheader("How many heads does the model really need?")
     pr = DATA / f"pruning_{key}.csv"

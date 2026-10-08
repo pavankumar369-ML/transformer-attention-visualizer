@@ -6,12 +6,14 @@ from shared.config import ACCENT, ACCENT_SOFT, AMBER, BG_SOFT, FONT_FAMILY, GRID
 
 def importance_fig(acc_drop) -> go.Figure:
     L, H = acc_drop.shape
-    z = acc_drop * 100
+    # acc_drop is "baseline minus accuracy after removal"; plot the actual change,
+    # so a head whose removal hurts shows a negative number.
+    z = -acc_drop * 100
     lim = max(float(abs(z).max()), 0.5)
     # Centred on zero: cobalt = removing the head hurts, amber = removing it helps.
     fig = go.Figure(go.Heatmap(
         z=z, x=[f"H{h + 1}" for h in range(H)], y=[f"L{l + 1}" for l in range(L)],
-        colorscale=[[0, AMBER], [0.5, "#FFFFFF"], [1, ACCENT]], zmin=-lim, zmax=lim, xgap=2, ygap=2,
+        colorscale=[[0, ACCENT], [0.5, "#FFFFFF"], [1, AMBER]], zmin=-lim, zmax=lim, xgap=2, ygap=2,
         colorbar=dict(title=dict(text="Accuracy change<br>when removed (pts)", side="right"),
                       thickness=10, outlinewidth=0),
         hovertemplate="Layer %{y}, head %{x}<br>removing it changes accuracy by %{z:+.1f} pts<extra></extra>"))
